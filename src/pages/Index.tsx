@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
-type GameScreen = "menu" | "playing" | "win" | "gameover";
+type GameScreen = "menu" | "playing" | "win" | "gameover" | "settings";
 type GameMode = "classic" | "race" | "survival";
 
 interface Car {
@@ -105,6 +105,23 @@ export default function Index() {
   const [elapsed, setElapsed] = useState(0);
   const [lives, setLives] = useState(3);
   const [selectedMode, setSelectedMode] = useState<GameMode>("classic");
+
+  const [settings, setSettings] = useState({
+    musicVolume: 70,
+    sfxVolume: 80,
+    upKey: "ArrowUp",
+    downKey: "ArrowDown",
+    leftKey: "ArrowLeft",
+    rightKey: "ArrowRight",
+    quality: "high" as "low" | "medium" | "high",
+    shadows: true,
+    trees: true,
+    difficulty: "normal" as "easy" | "normal" | "hard",
+    obstacleCount: 60,
+    maxSpeed: 85,
+  });
+  const [settingsTab, setSettingsTab] = useState<"sound" | "controls" | "graphics" | "difficulty">("sound");
+  const [rebinding, setRebinding] = useState<string | null>(null);
 
   const drawScene = useCallback((ctx: CanvasRenderingContext2D) => {
     const g = gameRef.current;
@@ -720,7 +737,20 @@ export default function Index() {
             СТАРТ
           </button>
 
-          <div style={{ marginTop: 40, color: "#ffffff44", fontSize: 13, fontFamily: "Rubik" }}>
+          <button
+            onClick={() => setScreen("settings")}
+            style={{
+              display: "block", margin: "20px auto 0",
+              fontFamily: "Oswald", fontWeight: 500, fontSize: 15, letterSpacing: 3,
+              padding: "12px 40px", borderRadius: 10,
+              border: "2px solid #ffffff22", background: "transparent",
+              color: "#ffffff66", cursor: "pointer", transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.color = "#ffffffcc"; (e.target as HTMLElement).style.borderColor = "#ffffff55"; }}
+            onMouseLeave={(e) => { (e.target as HTMLElement).style.color = "#ffffff66"; (e.target as HTMLElement).style.borderColor = "#ffffff22"; }}
+          >⚙ НАСТРОЙКИ</button>
+
+          <div style={{ marginTop: 28, color: "#ffffff44", fontSize: 13, fontFamily: "Rubik" }}>
             ↑↓ разгон/тормоз &nbsp;·&nbsp; ←→ поворот
           </div>
         </div>
@@ -728,6 +758,240 @@ export default function Index() {
         <style>{`
           @keyframes fadeUp {
             from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (screen === "settings") {
+    const tabs = [
+      { id: "sound", label: "🔊 ЗВУК" },
+      { id: "controls", label: "🎮 УПРАВЛЕНИЕ" },
+      { id: "graphics", label: "🖥 ГРАФИКА" },
+      { id: "difficulty", label: "⚡ СЛОЖНОСТЬ" },
+    ] as const;
+
+    const keyLabel = (k: string) =>
+      k.startsWith("Arrow") ? { ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→" }[k] ?? k : k.toUpperCase();
+
+    const handleRebind = (field: string) => {
+      setRebinding(field);
+      const onKey = (e: KeyboardEvent) => {
+        e.preventDefault();
+        setSettings((s) => ({ ...s, [field]: e.key }));
+        setRebinding(null);
+        window.removeEventListener("keydown", onKey);
+      };
+      window.addEventListener("keydown", onKey);
+    };
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center relative"
+        style={{ background: "linear-gradient(160deg, #0a1f0a 0%, #0d2e18 40%, #1a3a1a 100%)" }}>
+        <div style={{
+          width: "min(700px, 96vw)", background: "#0d1f0d",
+          border: "1px solid #ffffff18", borderRadius: 20,
+          overflow: "hidden", boxShadow: "0 24px 80px #00000088",
+          animation: "fadeUp 0.4s ease both",
+        }}>
+          {/* Header */}
+          <div style={{ padding: "28px 36px 20px", borderBottom: "1px solid #ffffff12", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 style={{ fontFamily: "Oswald", fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: 3, margin: 0 }}>⚙ НАСТРОЙКИ</h2>
+            <button onClick={() => setScreen("menu")} style={{
+              fontFamily: "Oswald", fontSize: 13, letterSpacing: 2,
+              padding: "8px 20px", borderRadius: 8,
+              border: "1px solid #ffffff33", background: "transparent",
+              color: "#ffffff88", cursor: "pointer"
+            }}>← МЕНЮ</button>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid #ffffff12" }}>
+            {tabs.map((t) => (
+              <button key={t.id} onClick={() => setSettingsTab(t.id)}
+                style={{
+                  flex: 1, padding: "14px 8px",
+                  fontFamily: "Oswald", fontSize: 13, letterSpacing: 1,
+                  border: "none", cursor: "pointer", transition: "all 0.2s",
+                  background: settingsTab === t.id ? "#4ade8018" : "transparent",
+                  color: settingsTab === t.id ? "#4ade80" : "#ffffff55",
+                  borderBottom: settingsTab === t.id ? "2px solid #4ade80" : "2px solid transparent",
+                }}>{t.label}</button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ padding: "28px 36px 32px" }}>
+
+            {/* SOUND */}
+            {settingsTab === "sound" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                {[
+                  { label: "🎵 Громкость музыки", key: "musicVolume" as const },
+                  { label: "💥 Громкость эффектов", key: "sfxVolume" as const },
+                ].map(({ label, key }) => (
+                  <div key={key}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                      <span style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15 }}>{label}</span>
+                      <span style={{ fontFamily: "Oswald", color: "#4ade80", fontSize: 18, minWidth: 40, textAlign: "right" }}>{settings[key]}%</span>
+                    </div>
+                    <div style={{ position: "relative", height: 6, background: "#ffffff18", borderRadius: 3 }}>
+                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${settings[key]}%`, background: "linear-gradient(90deg, #22c55e, #4ade80)", borderRadius: 3, transition: "width 0.1s" }} />
+                      <input type="range" min={0} max={100} value={settings[key]}
+                        onChange={(e) => setSettings((s) => ({ ...s, [key]: +e.target.value }))}
+                        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", margin: 0 }} />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, padding: "16px 20px", background: "#ffffff08", borderRadius: 12, display: "flex", alignItems: "center", gap: 16 }}>
+                  <span style={{ fontFamily: "Rubik", color: "#ffffffaa", fontSize: 14 }}>Звук в игре</span>
+                  <div onClick={() => setSettings((s) => ({ ...s, sfxVolume: s.sfxVolume > 0 ? 0 : 80 }))}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12, cursor: "pointer", transition: "background 0.2s",
+                      background: settings.sfxVolume > 0 ? "#4ade80" : "#ffffff22", position: "relative"
+                    }}>
+                    <div style={{
+                      position: "absolute", top: 3, left: settings.sfxVolume > 0 ? 23 : 3,
+                      width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s"
+                    }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CONTROLS */}
+            {settingsTab === "controls" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { label: "⬆ Вперёд", field: "upKey" },
+                  { label: "⬇ Назад", field: "downKey" },
+                  { label: "⬅ Влево", field: "leftKey" },
+                  { label: "➡ Вправо", field: "rightKey" },
+                ].map(({ label, field }) => (
+                  <div key={field} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#ffffff08", borderRadius: 10 }}>
+                    <span style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15 }}>{label}</span>
+                    <button onClick={() => handleRebind(field)}
+                      style={{
+                        fontFamily: "Oswald", fontSize: 15, letterSpacing: 1,
+                        padding: "8px 22px", borderRadius: 8, cursor: "pointer", transition: "all 0.2s",
+                        border: rebinding === field ? "2px solid #facc15" : "2px solid #ffffff33",
+                        background: rebinding === field ? "#facc1522" : "#ffffff0a",
+                        color: rebinding === field ? "#facc15" : "#ffffffcc",
+                        minWidth: 80, textAlign: "center",
+                      }}>
+                      {rebinding === field ? "..." : keyLabel(settings[field as keyof typeof settings] as string)}
+                    </button>
+                  </div>
+                ))}
+                <p style={{ fontFamily: "Rubik", color: "#ffffff44", fontSize: 13, marginTop: 4 }}>
+                  Нажми на кнопку и затем нужную клавишу для переназначения
+                </p>
+              </div>
+            )}
+
+            {/* GRAPHICS */}
+            {settingsTab === "graphics" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div>
+                  <div style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15, marginBottom: 12 }}>🖼 Качество графики</div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {(["low", "medium", "high"] as const).map((q) => (
+                      <button key={q} onClick={() => setSettings((s) => ({ ...s, quality: q }))}
+                        style={{
+                          flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer",
+                          fontFamily: "Oswald", fontSize: 14, letterSpacing: 1, transition: "all 0.2s",
+                          border: settings.quality === q ? "2px solid #4ade80" : "2px solid #ffffff22",
+                          background: settings.quality === q ? "#4ade8018" : "#ffffff08",
+                          color: settings.quality === q ? "#4ade80" : "#ffffff66",
+                        }}>
+                        {{ low: "НИЗКОЕ", medium: "СРЕДНЕЕ", high: "ВЫСОКОЕ" }[q]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {[
+                  { label: "🌳 Отображать деревья", key: "trees" as const },
+                  { label: "🌑 Тени объектов", key: "shadows" as const },
+                ].map(({ label, key }) => (
+                  <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "#ffffff08", borderRadius: 10 }}>
+                    <span style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15 }}>{label}</span>
+                    <div onClick={() => setSettings((s) => ({ ...s, [key]: !s[key] }))}
+                      style={{
+                        width: 44, height: 24, borderRadius: 12, cursor: "pointer", transition: "background 0.2s",
+                        background: settings[key] ? "#4ade80" : "#ffffff22", position: "relative"
+                      }}>
+                      <div style={{
+                        position: "absolute", top: 3, left: settings[key] ? 23 : 3,
+                        width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s"
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* DIFFICULTY */}
+            {settingsTab === "difficulty" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div>
+                  <div style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15, marginBottom: 12 }}>🎯 Сложность</div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {([
+                      { id: "easy", label: "ЛЁГКАЯ", color: "#4ade80" },
+                      { id: "normal", label: "СРЕДНЯЯ", color: "#facc15" },
+                      { id: "hard", label: "СЛОЖНАЯ", color: "#f87171" },
+                    ] as const).map((d) => (
+                      <button key={d.id} onClick={() => {
+                        setSettings((s) => ({
+                          ...s, difficulty: d.id,
+                          obstacleCount: { easy: 30, normal: 60, hard: 100 }[d.id],
+                          maxSpeed: { easy: 60, normal: 85, hard: 120 }[d.id],
+                        }));
+                      }}
+                        style={{
+                          flex: 1, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+                          fontFamily: "Oswald", fontSize: 14, letterSpacing: 1, transition: "all 0.2s",
+                          border: settings.difficulty === d.id ? `2px solid ${d.color}` : "2px solid #ffffff22",
+                          background: settings.difficulty === d.id ? `${d.color}18` : "#ffffff08",
+                          color: settings.difficulty === d.id ? d.color : "#ffffff66",
+                        }}>{d.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15 }}>🚧 Количество препятствий</span>
+                    <span style={{ fontFamily: "Oswald", color: "#facc15", fontSize: 18 }}>{settings.obstacleCount}</span>
+                  </div>
+                  <div style={{ position: "relative", height: 6, background: "#ffffff18", borderRadius: 3 }}>
+                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(settings.obstacleCount / 120) * 100}%`, background: "linear-gradient(90deg, #facc15, #f97316)", borderRadius: 3 }} />
+                    <input type="range" min={10} max={120} value={settings.obstacleCount}
+                      onChange={(e) => setSettings((s) => ({ ...s, obstacleCount: +e.target.value }))}
+                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", margin: 0 }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontFamily: "Rubik", color: "#ffffffcc", fontSize: 15 }}>🏎 Макс. скорость</span>
+                    <span style={{ fontFamily: "Oswald", color: "#f87171", fontSize: 18 }}>{settings.maxSpeed} км/ч</span>
+                  </div>
+                  <div style={{ position: "relative", height: 6, background: "#ffffff18", borderRadius: 3 }}>
+                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(settings.maxSpeed / 150) * 100}%`, background: "linear-gradient(90deg, #f87171, #ef4444)", borderRadius: 3 }} />
+                    <input type="range" min={40} max={150} value={settings.maxSpeed}
+                      onChange={(e) => setSettings((s) => ({ ...s, maxSpeed: +e.target.value }))}
+                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", margin: 0 }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
           }
         `}</style>
