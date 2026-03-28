@@ -117,35 +117,36 @@ export default function Index() {
     ctx.translate(0, H);
     ctx.scale(1, -1);
 
-    // Sky gradient
-    const sky = ctx.createLinearGradient(0, 0, 0, H * 0.45);
-    sky.addColorStop(0, "#1a3a5c");
-    sky.addColorStop(1, "#4a7fb5");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, H * 0.45);
+    // Horizon line
+    const hy = H * 0.55;
 
-    // Clouds
+    // Field background (top part)
+    const grassGrad = ctx.createLinearGradient(0, 0, 0, hy);
+    grassGrad.addColorStop(0, "#234d14");
+    grassGrad.addColorStop(0.6, "#3a7022");
+    grassGrad.addColorStop(1, "#2d5a1b");
+    ctx.fillStyle = grassGrad;
+    ctx.fillRect(0, 0, W, hy);
+
+    // Sky gradient (bottom part)
+    const sky = ctx.createLinearGradient(0, hy, 0, H);
+    sky.addColorStop(0, "#4a7fb5");
+    sky.addColorStop(1, "#1a3a5c");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, hy, W, H - hy);
+
+    // Clouds (in sky = bottom area)
     ctx.globalAlpha = 0.75;
     clouds.forEach((cl) => {
+      const cy = hy + (H - hy) * 0.3 + cl.y * 0.15;
       ctx.fillStyle = "#e8f0fa";
       ctx.beginPath();
-      ctx.ellipse(cl.x, cl.y, cl.w / 2, 18, 0, 0, Math.PI * 2);
-      ctx.ellipse(cl.x - cl.w * 0.2, cl.y + 6, cl.w * 0.3, 13, 0, 0, Math.PI * 2);
-      ctx.ellipse(cl.x + cl.w * 0.25, cl.y + 4, cl.w * 0.28, 14, 0, 0, Math.PI * 2);
+      ctx.ellipse(cl.x, cy, cl.w / 2, 18, 0, 0, Math.PI * 2);
+      ctx.ellipse(cl.x - cl.w * 0.2, cy + 6, cl.w * 0.3, 13, 0, 0, Math.PI * 2);
+      ctx.ellipse(cl.x + cl.w * 0.25, cy + 4, cl.w * 0.28, 14, 0, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.globalAlpha = 1;
-
-    // Horizon line
-    const hy = H * 0.45;
-
-    // Field background
-    const grassGrad = ctx.createLinearGradient(0, hy, 0, H);
-    grassGrad.addColorStop(0, "#2d5a1b");
-    grassGrad.addColorStop(0.4, "#3a7022");
-    grassGrad.addColorStop(1, "#234d14");
-    ctx.fillStyle = grassGrad;
-    ctx.fillRect(0, hy, W, H - hy);
 
     // Perspective projection helper
     const perspective = (worldX: number, worldY: number) => {
