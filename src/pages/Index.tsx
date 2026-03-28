@@ -86,6 +86,45 @@ export default function Index() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<{ ctx: AudioContext; engine: OscillatorNode; gainEngine: GainNode; gainSfx: GainNode } | null>(null);
 
+  const gameRef = useRef({
+    car: { x: 0, y: 80, vx: 0, vy: 0, angle: 0, speed: 0 } as Car,
+    obstacles: [] as Obstacle[],
+    trees: [] as Tree[],
+    clouds: [] as Cloud[],
+    keys: {} as Record<string, boolean>,
+    camera: { y: 0 },
+    animId: 0,
+    startTime: 0,
+    elapsed: 0,
+    lives: 3,
+    hits: 0,
+    grass: null as CanvasPattern | null,
+  });
+
+  const [screen, setScreen] = useState<GameScreen>("menu");
+  const [mode, setMode] = useState<GameMode>("classic");
+  const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [selectedMode, setSelectedMode] = useState<GameMode>("classic");
+
+  const [settings, setSettings] = useState({
+    musicVolume: 70,
+    sfxVolume: 80,
+    upKey: "ArrowUp",
+    downKey: "ArrowDown",
+    leftKey: "ArrowLeft",
+    rightKey: "ArrowRight",
+    quality: "high" as "low" | "medium" | "high",
+    shadows: true,
+    trees: true,
+    difficulty: "normal" as "easy" | "normal" | "hard",
+    obstacleCount: 60,
+    maxSpeed: 85,
+  });
+  const [settingsTab, setSettingsTab] = useState<"sound" | "controls" | "graphics" | "difficulty">("sound");
+  const [rebinding, setRebinding] = useState<string | null>(null);
+
   const initAudio = useCallback(() => {
     if (audioRef.current) return;
     const ctx = new AudioContext();
@@ -128,45 +167,6 @@ export default function Index() {
     engine.frequency.setTargetAtTime(80 + absSpeed * 2200, ctx.currentTime, 0.1);
     gainEngine.gain.setTargetAtTime(absSpeed > 0.003 ? vol * 0.08 : 0, ctx.currentTime, 0.1);
   }, [settings.sfxVolume]);
-
-  const gameRef = useRef({
-    car: { x: 0, y: 80, vx: 0, vy: 0, angle: 0, speed: 0 } as Car,
-    obstacles: [] as Obstacle[],
-    trees: [] as Tree[],
-    clouds: [] as Cloud[],
-    keys: {} as Record<string, boolean>,
-    camera: { y: 0 },
-    animId: 0,
-    startTime: 0,
-    elapsed: 0,
-    lives: 3,
-    hits: 0,
-    grass: null as CanvasPattern | null,
-  });
-
-  const [screen, setScreen] = useState<GameScreen>("menu");
-  const [mode, setMode] = useState<GameMode>("classic");
-  const [progress, setProgress] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [selectedMode, setSelectedMode] = useState<GameMode>("classic");
-
-  const [settings, setSettings] = useState({
-    musicVolume: 70,
-    sfxVolume: 80,
-    upKey: "ArrowUp",
-    downKey: "ArrowDown",
-    leftKey: "ArrowLeft",
-    rightKey: "ArrowRight",
-    quality: "high" as "low" | "medium" | "high",
-    shadows: true,
-    trees: true,
-    difficulty: "normal" as "easy" | "normal" | "hard",
-    obstacleCount: 60,
-    maxSpeed: 85,
-  });
-  const [settingsTab, setSettingsTab] = useState<"sound" | "controls" | "graphics" | "difficulty">("sound");
-  const [rebinding, setRebinding] = useState<string | null>(null);
 
   const drawScene = useCallback((ctx: CanvasRenderingContext2D, cfg: typeof settings) => {
     const g = gameRef.current;
