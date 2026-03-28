@@ -38,9 +38,9 @@ const ROAD_WIDTH = 220;
 const CANVAS_W = 900;
 const CANVAS_H = 550;
 
-function generateObstacles(): Obstacle[] {
+function generateObstacles(count = 60): Obstacle[] {
   const obs: Obstacle[] = [];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < count; i++) {
     const side = Math.random() > 0.5 ? 1 : -1;
     const x = ROAD_WIDTH / 2 + 30 + Math.random() * 220;
     obs.push({
@@ -84,6 +84,51 @@ const MODES: { id: GameMode; label: string; desc: string; color: string }[] = [
 
 export default function Index() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<{ ctx: AudioContext; engine: OscillatorNode; gainEngine: GainNode; gainSfx: GainNode } | null>(null);
+
+  const initAudio = useCallback(() => {
+    if (audioRef.current) return;
+    const ctx = new AudioContext();
+    const engine = ctx.createOscillator();
+    engine.type = "sawtooth";
+    engine.frequency.value = 80;
+    const gainEngine = ctx.createGain();
+    gainEngine.gain.value = 0;
+    const gainSfx = ctx.createGain();
+    gainSfx.gain.value = 0.3;
+    engine.connect(gainEngine);
+    gainEngine.connect(ctx.destination);
+    gainSfx.connect(ctx.destination);
+    engine.start();
+    audioRef.current = { ctx, engine, gainEngine, gainSfx };
+  }, []);
+
+  const playHit = useCallback(() => {
+    if (!audioRef.current) return;
+    const { ctx, gainSfx } = audioRef.current;
+    const vol = settings.sfxVolume / 100;
+    if (vol === 0) return;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 120;
+    g.gain.setValueAtTime(vol * 0.4, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(g);
+    g.connect(gainSfx);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  }, [settings.sfxVolume]);
+
+  const updateEngineSound = useCallback((speed: number) => {
+    if (!audioRef.current) return;
+    const { engine, gainEngine, ctx } = audioRef.current;
+    const vol = settings.sfxVolume / 100;
+    const absSpeed = Math.abs(speed);
+    engine.frequency.setTargetAtTime(80 + absSpeed * 2200, ctx.currentTime, 0.1);
+    gainEngine.gain.setTargetAtTime(absSpeed > 0.003 ? vol * 0.08 : 0, ctx.currentTime, 0.1);
+  }, [settings.sfxVolume]);
+
   const gameRef = useRef({
     car: { x: 0, y: 80, vx: 0, vy: 0, angle: 0, speed: 0 } as Car,
     obstacles: [] as Obstacle[],
@@ -123,7 +168,7 @@ export default function Index() {
   const [settingsTab, setSettingsTab] = useState<"sound" | "controls" | "graphics" | "difficulty">("sound");
   const [rebinding, setRebinding] = useState<string | null>(null);
 
-  const drawScene = useCallback((ctx: CanvasRenderingContext2D) => {
+  const drawScene = useCallback((ctx: CanvasRenderingContext2D, cfg: typeof settings) => {
     const g = gameRef.current;
     const { car, camera, obstacles, trees, clouds } = g;
     const W = CANVAS_W, H = CANVAS_H;
@@ -257,17 +302,19 @@ export default function Index() {
     drawRoad();
 
     // Trees
-    trees.forEach((t) => {
+    if (cfg.trees) trees.forEach((t) => {
       const p = perspective(t.x, t.y);
       if (!p || p.y < hy || p.y > H + 50) return;
       const s = p.scale * t.size * 0.045;
       // Shadow
-      ctx.globalAlpha = 0.3;
-      ctx.fillStyle = "#0a1a05";
-      ctx.beginPath();
-      ctx.ellipse(p.x + s * 3, p.y + s * 2, s * 8, s * 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      if (cfg.shadows) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#0a1a05";
+        ctx.beginPath();
+        ctx.ellipse(p.x + s * 3, p.y + s * 2, s * 8, s * 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       // Trunk
       ctx.fillStyle = "#5c3a1e";
       ctx.fillRect(p.x - s * 1.2, p.y - s * 6, s * 2.5, s * 7);
@@ -299,12 +346,14 @@ export default function Index() {
       if (!p || p.y < hy || p.y > H + 30) return;
       const s = p.scale * ob.size * 0.06;
       // Shadow
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.ellipse(p.x + s * 2, p.y + s, s * 5, s * 1.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      if (cfg.shadows) {
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(p.x + s * 2, p.y + s, s * 5, s * 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
 
       if (ob.type === "rock") {
         const rg = ctx.createRadialGradient(p.x - s, p.y - s, 0, p.x, p.y, s * 4);
@@ -377,12 +426,14 @@ export default function Index() {
       ctx.translate(carP.x, carP.y);
       ctx.rotate(car.angle);
       // Car shadow
-      ctx.globalAlpha = 0.4;
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.ellipse(s * 0.05, s * 0.25, s * 0.7, s * 0.18, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      if (cfg.shadows) {
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(s * 0.05, s * 0.25, s * 0.7, s * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       // Car body
       const bodyGrad = ctx.createLinearGradient(-s * 0.5, -s * 0.6, s * 0.5, s * 0.3);
       bodyGrad.addColorStop(0, "#e03030");
@@ -489,13 +540,14 @@ export default function Index() {
       ctx.font = "bold 22px Oswald, sans-serif";
       ctx.fillText(`⏱ ${mins}:${secs}`, 20, H - 16);
     }
-  }, [mode]);
+  }, [mode, settings]);
 
   const startGame = useCallback((m: GameMode) => {
+    initAudio();
     const g = gameRef.current;
     g.car = { x: 0, y: 80, vx: 0, vy: 0, angle: 0, speed: 0 };
     g.camera = { y: 0 };
-    g.obstacles = generateObstacles();
+    g.obstacles = generateObstacles(settings.obstacleCount);
     g.trees = generateTrees();
     g.clouds = generateClouds();
     g.keys = {};
@@ -508,7 +560,7 @@ export default function Index() {
     setProgress(0);
     setElapsed(0);
     setLives(3);
-  }, []);
+  }, [settings.obstacleCount, initAudio]);
 
   useEffect(() => {
     if (screen !== "playing") return;
@@ -526,7 +578,7 @@ export default function Index() {
     window.addEventListener("keydown", (e) => onKey(e, true));
     window.addEventListener("keyup", (e) => onKey(e, false));
 
-    const MAX_SPEED = 0.085;
+    const MAX_SPEED = (settings.maxSpeed / 1000);
     const ACCEL = 0.0018;
     const FRICTION = 0.97;
     const TURN = 0.032;
@@ -536,20 +588,25 @@ export default function Index() {
       const now = Date.now();
       g.elapsed = now - g.startTime;
 
+      const upKey = settings.upKey;
+      const downKey = settings.downKey;
+      const leftKey = settings.leftKey;
+      const rightKey = settings.rightKey;
+
       // Input
-      if (g.keys["ArrowUp"] || g.keys["w"] || g.keys["W"]) {
+      if (g.keys[upKey]) {
         g.car.speed = Math.min(g.car.speed + ACCEL, MAX_SPEED);
-      } else if (g.keys["ArrowDown"] || g.keys["s"] || g.keys["S"]) {
+      } else if (g.keys[downKey]) {
         g.car.speed = Math.max(g.car.speed - ACCEL, -MAX_SPEED * 0.4);
       } else {
         g.car.speed *= FRICTION;
       }
 
       if (Math.abs(g.car.speed) > 0.002) {
-        if (g.keys["ArrowLeft"] || g.keys["a"] || g.keys["A"]) {
+        if (g.keys[leftKey]) {
           g.car.angle -= TURN * Math.sign(g.car.speed) * Math.min(1, Math.abs(g.car.speed) / 0.02);
         }
-        if (g.keys["ArrowRight"] || g.keys["d"] || g.keys["D"]) {
+        if (g.keys[rightKey]) {
           g.car.angle += TURN * Math.sign(g.car.speed) * Math.min(1, Math.abs(g.car.speed) / 0.02);
         }
       }
@@ -567,6 +624,7 @@ export default function Index() {
 
       // Camera
       g.camera.y = Math.max(0, g.car.y - CANVAS_H * 0.55);
+      updateEngineSound(g.car.speed);
 
       // Clouds move
       g.clouds.forEach((cl) => {
@@ -584,6 +642,7 @@ export default function Index() {
             g.lives--;
             g.car.speed *= -0.4;
             lastHitTime = now;
+            playHit();
             setLives(g.lives);
             if (g.lives <= 0) {
               setScreen("gameover");
@@ -606,7 +665,7 @@ export default function Index() {
       }
 
       // Draw
-      drawScene(ctx);
+      drawScene(ctx, settings);
       g.animId = requestAnimationFrame(loop);
     };
 
@@ -616,7 +675,7 @@ export default function Index() {
       window.removeEventListener("keydown", (e) => onKey(e, true));
       window.removeEventListener("keyup", (e) => onKey(e, false));
     };
-  }, [screen, drawScene, mode]);
+  }, [screen, drawScene, mode, settings, updateEngineSound, playHit]);
 
   if (screen === "menu") {
     return (
