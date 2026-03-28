@@ -151,7 +151,7 @@ export default function Index() {
       const fov = 380;
       const scale = fov / (fov + relY * 0.9);
       const screenX = W / 2 + worldX * scale * 1.4;
-      const screenY = hy + relY * scale * 1.1;
+      const screenY = H - (relY * scale * 1.1);
       return { x: screenX, y: screenY, scale };
     };
 
