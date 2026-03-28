@@ -118,7 +118,7 @@ export default function Index() {
     ctx.scale(1, -1);
 
     // Horizon line
-    const hy = H * 0.55;
+    const hy = H * 0.75;
 
     // Field background (top part)
     const grassGrad = ctx.createLinearGradient(0, 0, 0, hy);
