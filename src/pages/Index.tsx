@@ -112,6 +112,11 @@ export default function Index() {
     const W = CANVAS_W, H = CANVAS_H;
     const camY = camera.y;
 
+    // Flip canvas upside down
+    ctx.save();
+    ctx.translate(0, H);
+    ctx.scale(1, -1);
+
     // Sky gradient
     const sky = ctx.createLinearGradient(0, 0, 0, H * 0.45);
     sky.addColorStop(0, "#1a3a5c");
@@ -421,6 +426,9 @@ export default function Index() {
       ctx.globalAlpha = 1;
       ctx.restore();
     }
+
+    // Restore normal orientation for HUD
+    ctx.restore();
 
     // Progress HUD
     const pct = Math.min(1, car.y / (FIELD_LENGTH - 100));
